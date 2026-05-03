@@ -47,6 +47,7 @@ cp "${DATA_DIR}/TShirts.csv"              "${ACTUAL_DIR}/" 2>/dev/null || true
 cp "${DATA_DIR}/TShirt-counts.csv"        "${ACTUAL_DIR}/" 2>/dev/null || true
 cp "${DATA_DIR}/sailing-level-counts.csv" "${ACTUAL_DIR}/" 2>/dev/null || true
 cp "${DATA_DIR}/student-counts.csv"       "${ACTUAL_DIR}/" 2>/dev/null || true
+cp "${DATA_DIR}/student-list.csv"         "${ACTUAL_DIR}/" 2>/dev/null || true
 
 if [ "${UPDATE_GOLDEN}" -eq 1 ]; then
     cp -r "${ACTUAL_DIR}/." "${GOLDEN_DIR}/"

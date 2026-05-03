@@ -69,6 +69,7 @@ generate_csv($tshirts);
 generate_tshirt_counts_csv($tshirt_counts);
 generate_levels_csv();
 generate_student_counts_csv();
+generate_student_list_csv();
 
 
 sub collect_tshirts {
@@ -260,23 +261,25 @@ sub is_fair_haven {
     return levenshtein(normalize_for_match($city), 'fairhaven') <= 2;
 }
 
-sub generate_student_counts_csv {
-    local $_;
-
-    my $total = scalar @all_students;
-
+sub deduplicate_students {
     my %seen;
     my @unique;
     for my $s (@all_students) {
         my $norm_last  = normalize_for_match($s->{last});
         my $norm_first = normalize_for_match($s->{first});
-        my $sdx        = soundex_code($norm_first);
-        my $key        = "${norm_last}:${sdx}";
+        my $key        = "${norm_last}:" . soundex_code($norm_first);
         push @unique, $s unless $seen{$key}++;
     }
+    return @unique;
+}
 
-    my $unique_count      = scalar @unique;
-    my $fair_haven_count  = scalar grep { is_fair_haven($_->{city}) } @unique;
+sub generate_student_counts_csv {
+    local $_;
+
+    my @unique          = deduplicate_students();
+    my $total           = scalar @all_students;
+    my $unique_count    = scalar @unique;
+    my $fair_haven_count = scalar grep { is_fair_haven($_->{city}) } @unique;
 
     my $file = "${data_dir}/student-counts.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
@@ -284,6 +287,25 @@ sub generate_student_counts_csv {
     say FILE "\"Total registrations\",${total}";
     say FILE "\"Unique students (estimated)\",${unique_count}";
     say FILE "\"Students from Fair Haven (estimated)\",${fair_haven_count}";
+    close FILE;
+}
+
+sub generate_student_list_csv {
+    local $_;
+
+    my @unique = deduplicate_students();
+
+    my $file = "${data_dir}/student-list.csv";
+    open(FILE, '>', $file) || die $! . ": ${file}";
+    say FILE '"Name (normalized)","Town"';
+
+    for my $s (sort { normalize_for_match($a->{last})  cmp normalize_for_match($b->{last})
+                   || normalize_for_match($a->{first}) cmp normalize_for_match($b->{first}) } @unique) {
+        my $key  = normalize_for_match($s->{last}) . '|' . normalize_for_match($s->{first});
+        my $city = $s->{city};
+        say FILE "\"${key}\",\"${city}\"";
+    }
+
     close FILE;
 }
 
