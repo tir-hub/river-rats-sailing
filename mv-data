@@ -1,0 +1,4 @@
+mv ~/Downloads/registration_data.csv $1
+mv ~/Downloads/registrant_data.csv $1
+
+
