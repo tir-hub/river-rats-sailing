@@ -63,6 +63,7 @@ for my $key (sort keys %tshirt_counts) {
 }
 
 generate_csv($tshirts);
+generate_tshirt_counts_csv($tshirt_counts);
 generate_levels_csv();
 
 
@@ -117,6 +118,22 @@ sub generate_csv {
     for my $key (sort keys %tshirts) {
 	my $size = $tshirts->{$key};
 	say FILE "\"${key}\",\"${size}\",";
+    }
+
+    close FILE;
+}
+
+sub generate_tshirt_counts_csv {
+    my ($tshirt_counts) = @_;
+    local $_;
+
+    my $file = "${data_dir}/TShirt-counts.csv";
+    open(FILE, '>', $file) || die $! . ": ${file}";
+    say FILE '"Size","Count"';
+
+    for my $key (sort keys %$tshirt_counts) {
+        my $count = $tshirt_counts->{$key};
+        say FILE "\"${key}\",${count}";
     }
 
     close FILE;

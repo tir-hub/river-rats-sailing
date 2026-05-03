@@ -44,6 +44,7 @@ for s in Session-{1..7}; do
     cp "${DATA_DIR}/${s}/sailing-level-counts.csv"    "${ACTUAL_DIR}/${s}/" 2>/dev/null || true
 done
 cp "${DATA_DIR}/TShirts.csv"              "${ACTUAL_DIR}/" 2>/dev/null || true
+cp "${DATA_DIR}/TShirt-counts.csv"        "${ACTUAL_DIR}/" 2>/dev/null || true
 cp "${DATA_DIR}/sailing-level-counts.csv" "${ACTUAL_DIR}/" 2>/dev/null || true
 
 if [ "${UPDATE_GOLDEN}" -eq 1 ]; then
