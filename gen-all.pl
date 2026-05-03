@@ -4,14 +4,17 @@ use warnings;
 use v5.10;
 use Getopt::Long;
 use Data::Dumper;
-use Cwd qw(cwd);
+use FindBin;
+use Cwd qw(cwd abs_path);
 
+my $data_dir = ".";
 my $verbose;
 my $help = 0;
 
 GetOptions (
-            "verbose"  => \$verbose,
-            "help"     => \$help)
+            "data-dir=s" => \$data_dir,
+            "verbose"    => \$verbose,
+            "help"       => \$help)
     ||  die usage();
 
 if ($help) {
@@ -21,19 +24,21 @@ if ($help) {
 
 say "generating all reports";
 
+$data_dir = abs_path($data_dir);
+
 my %tshirts = ();
 my $tshirts = \%tshirts;
 my %tshirt_counts = ();
 my $tshirt_counts = \%tshirt_counts;
 my $levels = "";
 my @classes = qw(Session-1 Session-2 Session-3 Session-4 Session-5 Session-6 Session-7);
-my $sailing_level_counts_file = "sailing-level-counts.csv";
+my $sailing_level_counts_file = "${data_dir}/sailing-level-counts.csv";
 
 for my $class (@classes) {
     say $class;
     my $pwd = cwd;
-    chdir $class;
-    invoke ("../gen-attendance.pl");
+    chdir "${data_dir}/${class}";
+    invoke ("$FindBin::Bin/gen-attendance.pl");
     collect_tshirts();
     collect_levels($class);
     chdir $pwd;
@@ -90,7 +95,8 @@ sub collect_levels {
 
     $levels = $levels . "\n\"${class}\"\n";
 
-    open(FILE, '<', $sailing_level_counts_file) || die $! . ": ${sailing_level_counts_file}";
+    my $session_levels_file = "sailing-level-counts.csv";
+    open(FILE, '<', $session_levels_file) || die $! . ": ${session_levels_file}";
     my @file_content = <FILE>;
     say "level file_content: @{file_content}";
     foreach my $file_content (@file_content) {
@@ -104,7 +110,7 @@ sub generate_csv {
     my ($tshirts) = @_;
     local $_;
 
-    my $file = "TShirts.csv";
+    my $file = "${data_dir}/TShirts.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Student","T-shirt","Delivered"';
 
@@ -119,7 +125,6 @@ sub generate_csv {
 sub generate_levels_csv {
     local $_;
 
-    my $file = "TShirts.csv";
     open(FILE, '>', $sailing_level_counts_file) || die $! . ": ${sailing_level_counts_file}";
     say FILE $levels;
 
@@ -154,7 +159,11 @@ To run this, create directories foreach class named as follows:
 In each directory, export the class's registration and registrant data. Name the registration data registration_data.csv and the registrant data registrant_data.csv  See instructions at end of usage.
 Then run this program from the parent directory containing the MWF-1, MWF-2.. directories.
 usage:
-   ${0} [--help]
+   ${0} [--data-dir=<path>] [--help]
+
+   --data-dir   Directory containing Session-1..Session-7 subdirectories.
+                Defaults to the current directory.
+                Example: --data-dir ~/RiverRats/2026
 
 First export the registration and registrant data into a directory, then run this program.
 

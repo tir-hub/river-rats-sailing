@@ -1,4 +1,5 @@
-mv ~/Downloads/registration_data.csv $1
-mv ~/Downloads/registrant_data.csv $1
-
-
+#!/bin/bash
+# Usage: mv-data <session-dir>
+# Example: mv-data ~/RiverRats/2026/Session-1
+mv ~/Downloads/registration_data.csv "$1"
+mv ~/Downloads/registrant_data.csv "$1"

@@ -1,4 +1,10 @@
-for i in {1..7}
-do
-mkdir Session-$i
+#!/bin/bash
+# Usage: mk-sessions [year]
+# Creates ~/RiverRats/<year>/Session-{1..7}
+YEAR=${1:-$(date +%Y)}
+DEST=~/RiverRats/${YEAR}
+mkdir -p "${DEST}"
+for i in {1..7}; do
+    mkdir -p "${DEST}/Session-${i}"
 done
+echo "Created ${DEST}/Session-{1..7}"

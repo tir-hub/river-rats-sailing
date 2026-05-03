@@ -1,3 +1,7 @@
-mv ~/Downloads/report.pdf Registration-details.pdf
-mv ~/Downloads/registration_data.csv .
-mv ~/Downloads/registrant_data.csv .
+#!/bin/bash
+# Usage: mv-reports <session-dir>
+# Example: mv-reports ~/RiverRats/2026/Session-1
+DEST=${1:-.}
+mv ~/Downloads/report.pdf "${DEST}/Registration-details.pdf"
+mv ~/Downloads/registration_data.csv "${DEST}/"
+mv ~/Downloads/registrant_data.csv "${DEST}/"
