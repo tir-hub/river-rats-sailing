@@ -58,7 +58,14 @@ else
         echo "Differences found:"
         diff -r "${GOLDEN_DIR}" "${ACTUAL_DIR}" || true
         echo ""
-        echo "Launching meld ..."
-        meld "${GOLDEN_DIR}" "${ACTUAL_DIR}"
+        if command -v meld &>/dev/null; then
+            echo "Launching meld ..."
+            meld "${GOLDEN_DIR}" "${ACTUAL_DIR}"
+        elif command -v opendiff &>/dev/null; then
+            echo "Launching opendiff ..."
+            opendiff "${GOLDEN_DIR}" "${ACTUAL_DIR}"
+        else
+            echo "No visual diff tool found (install meld on Linux, or Xcode Command Line Tools on macOS for opendiff)"
+        fi
     fi
 fi
