@@ -6,6 +6,7 @@ use Getopt::Long;
 use Data::Dumper;
 use FindBin;
 use Cwd qw(cwd abs_path);
+use Text::ParseWords;
 
 my $data_dir = ".";
 my $verbose;
@@ -31,6 +32,7 @@ my $tshirts = \%tshirts;
 my %tshirt_counts = ();
 my $tshirt_counts = \%tshirt_counts;
 my $levels = "";
+my @all_students = ();
 my @classes = qw(Session-1 Session-2 Session-3 Session-4 Session-5 Session-6 Session-7);
 my $sailing_level_counts_file = "${data_dir}/sailing-level-counts.csv";
 
@@ -41,6 +43,7 @@ for my $class (@classes) {
     invoke ("$FindBin::Bin/gen-attendance.pl");
     collect_tshirts();
     collect_levels($class);
+    collect_students();
     chdir $pwd;
 }
 
@@ -65,6 +68,7 @@ for my $key (sort keys %tshirt_counts) {
 generate_csv($tshirts);
 generate_tshirt_counts_csv($tshirt_counts);
 generate_levels_csv();
+generate_student_counts_csv();
 
 
 sub collect_tshirts {
@@ -148,6 +152,140 @@ sub generate_levels_csv {
     close FILE;
 }
 
+
+sub parse_csv_file {
+    my ($file) = @_;
+    local $_;
+
+    open(FILE, '<', $file) || die $! . ": ${file}";
+    my @lines = <FILE>;
+    close FILE;
+
+    chomp @lines;
+    my ($header, @data) = @lines;
+    $header =~ s/\r$//;
+
+    my @raw = split(/,/, $header);
+    my %col;
+    for my $i (0..$#raw) {
+        (my $t = $raw[$i]) =~ s/"//g;
+        $col{$t} = $i;
+    }
+
+    my @rows;
+    for my $line (@data) {
+        $line =~ s/\r$//;
+        next unless $line =~ /\S/;
+        $line .= '""' if $line =~ /,$/;
+        my @fields = parse_line(',', 0, $line);
+        push @rows, \@fields;
+    }
+
+    return (\%col, \@rows);
+}
+
+sub collect_students {
+    local $_;
+
+    # Build trans-ref -> city map from registration_data.csv (parent record)
+    my ($reg_col, $reg_rows) = parse_csv_file("registration_data.csv");
+    my %city_for_trans;
+    for my $row (@$reg_rows) {
+        my $trans = $row->[$reg_col->{'Trans. Ref. Num.'}] // '';
+        my $city  = $row->[$reg_col->{'City'}]             // '';
+        $city =~ s/^\s+|\s+$//g;
+        $city_for_trans{$trans} = $city if $trans;
+    }
+
+    # Read student names from registrant_data.csv and join city via trans ref
+    my ($ant_col, $ant_rows) = parse_csv_file("registrant_data.csv");
+    for my $row (@$ant_rows) {
+        my $first = $row->[$ant_col->{'First Name'}]       // '';
+        my $last  = $row->[$ant_col->{'Last Name'}]        // '';
+        my $trans = $row->[$ant_col->{'Trans. Ref. Num.'}] // '';
+
+        $first =~ s/^\s+|\s+$//g;
+        $last  =~ s/^\s+|\s+$//g;
+
+        my $city = $city_for_trans{$trans} // '';
+
+        push @all_students, { first => $first, last => $last, city => $city };
+    }
+}
+
+sub soundex_code {
+    my ($name) = @_;
+    return 'Z000' unless $name;
+    $name = uc($name);
+    $name =~ s/[^A-Z]//g;
+    return 'Z000' unless $name;
+    my $first = substr($name, 0, 1);
+    (my $coded = $name) =~ tr/AEIOUYHWBFPVCGJKQSXZDTLMNR/000000000111122222233455566/;
+    my $rest = substr($coded, 1);
+    $rest =~ s/(.)\1+/$1/g;
+    $rest =~ s/0//g;
+    $rest .= '000';
+    return $first . substr($rest, 0, 3);
+}
+
+sub normalize_for_match {
+    my ($s) = @_;
+    $s = lc($s);
+    $s =~ s/[^a-z]//g;
+    return $s;
+}
+
+sub levenshtein {
+    my ($s, $t) = @_;
+    my @s = split //, $s;
+    my @t = split //, $t;
+    my @d;
+    $d[$_][0] = $_ for 0..@s;
+    $d[0][$_] = $_ for 0..@t;
+    for my $i (1..@s) {
+        for my $j (1..@t) {
+            my $cost = $s[$i-1] eq $t[$j-1] ? 0 : 1;
+            my $sub  = $d[$i-1][$j-1] + $cost;
+            my $del  = $d[$i-1][$j]   + 1;
+            my $ins  = $d[$i][$j-1]   + 1;
+            $d[$i][$j] = $del < $ins ? ($del < $sub ? $del : $sub)
+                                     : ($ins < $sub ? $ins : $sub);
+        }
+    }
+    return $d[@s][@t];
+}
+
+sub is_fair_haven {
+    my ($city) = @_;
+    return levenshtein(normalize_for_match($city), 'fairhaven') <= 2;
+}
+
+sub generate_student_counts_csv {
+    local $_;
+
+    my $total = scalar @all_students;
+
+    my %seen;
+    my @unique;
+    for my $s (@all_students) {
+        my $norm_last  = normalize_for_match($s->{last});
+        my $norm_first = normalize_for_match($s->{first});
+        my $sdx        = soundex_code($norm_first);
+        my $key        = "${norm_last}:${sdx}";
+        push @unique, $s unless $seen{$key}++;
+    }
+
+    my $unique_count      = scalar @unique;
+    my $fair_haven_count  = scalar grep { is_fair_haven($_->{city}) } @unique;
+
+    my $file = "${data_dir}/student-counts.csv";
+    open(FILE, '>', $file) || die $! . ": ${file}";
+    say FILE '"Metric","Count"';
+    say FILE "\"Total registrations\",${total}";
+    say FILE "\"Unique students (estimated)\",${unique_count}";
+    say FILE "\"Students from Fair Haven (estimated)\",${fair_haven_count}";
+    close FILE;
+}
 
 sub invoke {
     my ($cmd) = @_;
