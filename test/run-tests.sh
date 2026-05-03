@@ -9,7 +9,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GOLDEN_DIR="${SCRIPT_DIR}/golden"
 YEAR=${1:-2026}
-DATA_DIR="${HOME}/RiverRats/${YEAR}"
+DATA_DIR="${HOME}/Documents/Data/RiverRats/${YEAR}"
 GEN_ALL="${SCRIPT_DIR}/../gen-all.pl"
 
 if [ ! -d "${DATA_DIR}" ]; then

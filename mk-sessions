@@ -2,7 +2,7 @@
 # Usage: mk-sessions [year]
 # Creates ~/RiverRats/<year>/Session-{1..7}
 YEAR=${1:-$(date +%Y)}
-DEST=~/RiverRats/${YEAR}
+DEST=~/Documents/Data/RiverRats/${YEAR}
 mkdir -p "${DEST}"
 for i in {1..7}; do
     mkdir -p "${DEST}/Session-${i}"

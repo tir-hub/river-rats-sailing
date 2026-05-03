@@ -1,5 +1,5 @@
 #!/bin/bash
 # Usage: zip-it [data-dir]
 # Example: zip-it ~/RiverRats/2026
-DATA_DIR=${1:-~/RiverRats/$(date +%Y)}
+DATA_DIR=${1:-~/Documents/Data/RiverRats/$(date +%Y)}
 zip -r classes.zip "${DATA_DIR}"/Session-* "${DATA_DIR}"/TShirts.csv "${DATA_DIR}"/sailing-level-counts.csv
