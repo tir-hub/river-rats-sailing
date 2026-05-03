@@ -301,7 +301,7 @@ sub generate_student_list_csv {
 
     for my $s (sort { normalize_for_match($a->{last})  cmp normalize_for_match($b->{last})
                    || normalize_for_match($a->{first}) cmp normalize_for_match($b->{first}) } @unique) {
-        my $key  = normalize_for_match($s->{last}) . '|' . normalize_for_match($s->{first});
+        my $key  = normalize_for_match($s->{last}) . '==' . normalize_for_match($s->{first});
         my $city = $s->{city};
         say FILE "\"${key}\",\"${city}\"";
     }
