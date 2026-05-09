@@ -1,0 +1,25 @@
+
+                                     Junior Sailing Session-2 Attendance
+
+Name                T-Shirt          Contact          Lunch      Alergies    Full Signature and Time
+                                                      off-prem
+--------------------------------------------------------------------------------------------------------------
+
+Eve Davis           Youth large      Sam Davis        Allow      No          In:  ______________ Time:_______
+                                     555-0203
+                                     555-0204 M                              Out: ______________ Time:_______
+                                     Alex Davis
+                                     555-0205
+
+Frank Miller        Adult medium     Dana Miller      Deny       No          In:  ______________ Time:_______
+                                     555-0206
+                                                                             Out: ______________ Time:_______
+                                     Jordan Miller
+                                     555-0207
+
+Alice Smith         Youth medium     Pat Smith        Allow      No          In:  ______________ Time:_______
+                                     555-0201
+                                                                             Out: ______________ Time:_______
+                                     Terry Smith
+                                     555-0202
+

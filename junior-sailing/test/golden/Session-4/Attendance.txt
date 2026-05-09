@@ -1,0 +1,25 @@
+
+                                     Junior Sailing Session-4 Attendance
+
+Name                T-Shirt          Contact          Lunch      Alergies    Full Signature and Time
+                                                      off-prem
+--------------------------------------------------------------------------------------------------------------
+
+Jake Anderson       Adult medium     Blake Anderson   Allow      No          In:  ______________ Time:_______
+                                     555-0406
+                                                                             Out: ______________ Time:_______
+                                     Kim Anderson
+                                     555-0407
+
+Iris Moore          Adult large      Quinn Moore      Deny       No          In:  ______________ Time:_______
+                                     555-0404
+                                                                             Out: ______________ Time:_______
+                                     Jordan Moore
+                                     555-0405
+
+Grace Wilson        Youth medium     Chris Wilson     Allow      No          In:  ______________ Time:_______
+                                     555-0401
+                                     555-0402 M                              Out: ______________ Time:_______
+                                     Taylor Wilson
+                                     555-0403
+

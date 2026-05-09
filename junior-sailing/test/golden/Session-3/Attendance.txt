@@ -1,0 +1,25 @@
+
+                                     Junior Sailing Session-3 Attendance
+
+Name                T-Shirt          Contact          Lunch      Alergies    Full Signature and Time
+                                                      off-prem
+--------------------------------------------------------------------------------------------------------------
+
+Bob Jones           Youth large      Lee Jones        Deny       No          In:  ______________ Time:_______
+                                     555-0306
+                                     555-0307 M                              Out: ______________ Time:_______
+                                     Sandy Jones
+                                     555-0308
+
+Henry Taylor        Youth large      Avery Taylor     Allow      Yes         In:  ______________ Time:_______
+                                     555-0304
+                                                                             Out: ______________ Time:_______
+                                     Riley Taylor
+                                     555-0305
+
+Grace Wilson        Youth medium     Chris Wilson     Allow      No          In:  ______________ Time:_______
+                                     555-0301
+                                     555-0302 M                              Out: ______________ Time:_______
+                                     Taylor Wilson
+                                     555-0303
+
