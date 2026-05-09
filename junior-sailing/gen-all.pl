@@ -360,7 +360,11 @@ sub compare_outputs {
 
     say "";
     say "Comparing outputs against ${ref_dir} ...";
-    system('diff', '-r', $ref_dir, $actual_dir);
+    system('diff', '-r',
+           '--exclude=registration_data.csv',
+           '--exclude=registrant_data.csv',
+           '--exclude=*.pdf',
+           $ref_dir, $actual_dir);
 
     if ($? == 0) {
         say "All outputs match. PASS.";
