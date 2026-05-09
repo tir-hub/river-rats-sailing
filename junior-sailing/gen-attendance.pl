@@ -7,17 +7,21 @@ use Data::Dumper;
 # use Text::CSV;
 use Text::ParseWords;
 
-my $registration_file = "registration_data.csv";
-my $registrant_file   = "registrant_data.csv";
+my $input_dir         = ".";
+my $output_dir;
+my $registration_file;
+my $registrant_file;
 my $length = 24;
 my $verbose;
 my $help = 0;
 
-GetOptions ("length=i" => \$length,
-            "registration=s"   => \$registration_file,
+GetOptions ("length=i"       => \$length,
+            "input-dir=s"    => \$input_dir,
+            "output-dir=s"   => \$output_dir,
+            "registration=s" => \$registration_file,
             "registrant=s"   => \$registrant_file,
-            "verbose"  => \$verbose,
-            "help"     => \$help)
+            "verbose"        => \$verbose,
+            "help"           => \$help)
     ||  die usage();
 
 
@@ -25,6 +29,10 @@ if ($help) {
     say usage();
     exit(0);
 }
+
+$output_dir        //= $input_dir;
+$registration_file //= "${input_dir}/registration_data.csv";
+$registrant_file   //= "${input_dir}/registrant_data.csv";
 
 say "generating reports";
 
@@ -139,7 +147,7 @@ sub generate_attendance_csv {
     local $_;
 
     my $short_event = $event_title;
-    my $file = "Attendance ${short_event}.csv";
+    my $file = "${output_dir}/Attendance ${short_event}.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Student","T-shirt","Contact","Lunch-off-prem", "Alergies", "Full Signature and Time"';
 
@@ -198,8 +206,8 @@ $name,             $t_shirt,         $contact,        $lunch,    $alergies,  "In
 
 .    
 
-    my $file = "Attendance.txt";
-    open(FILE, '>', "Attendance.txt") || die $! . ": ${file}";
+    my $file = "${output_dir}/Attendance.txt";
+    open(FILE, '>', $file) || die $! . ": ${file}";
     select FILE;
 
     $~ = 'ATTENDANCE_TOP';
@@ -243,7 +251,7 @@ sub generate_sailing_level_counts_csv {
     my $advanced = 0;
     my $unsure = 0;
 
-    my $file = "sailing-level-counts.csv";
+    my $file = "${output_dir}/sailing-level-counts.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Total","Beginners","Intermediates","Advanced","Unsure"';
 
