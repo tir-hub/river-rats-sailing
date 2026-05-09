@@ -1,8 +1,8 @@
 #!/bin/bash
-# Runs gen-all.pl against ~/Documents/Data/RiverRats/<year> and compares outputs to golden.
+# Runs gen-all.pl against the local synthetic test data and compares outputs to golden.
 # Invokes meld on the output directories if any file has changed.
 #
-# Usage: run-tests.sh [--update-golden] [year]   (year defaults to 2026)
+# Usage: run-tests.sh [--update-golden]
 #
 #   --update-golden   After running, copy outputs to golden instead of diffing.
 #                     Use this after confirming that changed output is intentional.
@@ -12,20 +12,17 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GOLDEN_DIR="${SCRIPT_DIR}/golden"
 GEN_ALL="${SCRIPT_DIR}/../gen-all.pl"
+DATA_DIR="${SCRIPT_DIR}/data"
 UPDATE_GOLDEN=0
-YEAR=2026
 
 for arg in "$@"; do
     case "${arg}" in
         --update-golden) UPDATE_GOLDEN=1 ;;
-        *) YEAR="${arg}" ;;
     esac
 done
 
-DATA_DIR="${HOME}/Documents/Data/RiverRats/${YEAR}"
-
 if [ ! -d "${DATA_DIR}" ]; then
-    echo "ERROR: data directory not found: ${DATA_DIR}"
+    echo "ERROR: test data directory not found: ${DATA_DIR}"
     exit 1
 fi
 
@@ -51,7 +48,7 @@ cp "${DATA_DIR}/student-list.csv"         "${ACTUAL_DIR}/" 2>/dev/null || true
 
 if [ "${UPDATE_GOLDEN}" -eq 1 ]; then
     cp -r "${ACTUAL_DIR}/." "${GOLDEN_DIR}/"
-    echo "Golden files updated from ${DATA_DIR}."
+    echo "Golden files updated."
 else
     echo "Comparing outputs against golden (${GOLDEN_DIR}) ..."
     if diff -r "${GOLDEN_DIR}" "${ACTUAL_DIR}" > /dev/null 2>&1; then
