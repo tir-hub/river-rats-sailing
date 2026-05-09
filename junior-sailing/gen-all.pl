@@ -5,17 +5,24 @@ use v5.10;
 use Getopt::Long;
 use Data::Dumper;
 use FindBin;
-use Cwd qw(cwd abs_path);
+use Cwd qw(abs_path);
 use Text::ParseWords;
+use File::Temp qw(tempdir);
+use File::Path qw(make_path);
 
 my $data_dir = ".";
+my $output_dir;
+my $working_dir;
+my $compare_only = 0;
 my $verbose;
 my $help = 0;
 
 GetOptions (
-            "data-dir=s" => \$data_dir,
-            "verbose"    => \$verbose,
-            "help"       => \$help)
+            "data-dir=s"   => \$data_dir,
+            "output-dir=s" => \$output_dir,
+            "compare-only" => \$compare_only,
+            "verbose"      => \$verbose,
+            "help"         => \$help)
     ||  die usage();
 
 if ($help) {
@@ -25,7 +32,9 @@ if ($help) {
 
 say "generating all reports";
 
-$data_dir = abs_path($data_dir);
+$data_dir   = abs_path($data_dir);
+$output_dir = defined($output_dir) ? abs_path($output_dir) : $data_dir;
+$working_dir = $compare_only ? tempdir(CLEANUP => 1) : $output_dir;
 
 my %tshirts = ();
 my $tshirts = \%tshirts;
@@ -34,17 +43,19 @@ my $tshirt_counts = \%tshirt_counts;
 my $levels = "";
 my @all_students = ();
 my @classes = qw(Session-1 Session-2 Session-3 Session-4 Session-5 Session-6 Session-7);
-my $sailing_level_counts_file = "${data_dir}/sailing-level-counts.csv";
+my $sailing_level_counts_file = "${working_dir}/sailing-level-counts.csv";
 
 for my $class (@classes) {
     say $class;
-    my $pwd = cwd;
-    chdir "${data_dir}/${class}";
-    invoke ("$FindBin::Bin/gen-attendance.pl");
-    collect_tshirts();
-    collect_levels($class);
-    collect_students();
-    chdir $pwd;
+    my $session_dir      = "${working_dir}/${class}";
+    my $data_session_dir = "${data_dir}/${class}";
+    make_path($session_dir) if $working_dir ne $data_dir;
+    invoke("$FindBin::Bin/gen-attendance.pl"
+         . " --input-dir=${data_session_dir}"
+         . " --output-dir=${session_dir}");
+    collect_tshirts($session_dir);
+    collect_levels($class, $session_dir);
+    collect_students($data_session_dir);
 }
 
 # say Dumper($tshirts);
@@ -71,11 +82,16 @@ generate_levels_csv();
 generate_student_counts_csv();
 generate_student_list_csv();
 
+if ($compare_only) {
+    compare_outputs($output_dir, $working_dir);
+}
+
 
 sub collect_tshirts {
+    my ($session_dir) = @_;
     local $_;
-    
-    my @lines = invoke("grep In: Attendance*Junior*Sailing*Session*csv");
+
+    my @lines = invoke("grep In: ${session_dir}/Attendance*Junior*Sailing*Session*csv");
     chomp @lines;
 
     for my $line (@lines) {
@@ -96,12 +112,12 @@ sub collect_tshirts {
 }
 
 sub collect_levels {
-    my ($class) = @_;
+    my ($class, $session_dir) = @_;
     local $_;
 
     $levels = $levels . "\n\"${class}\"\n";
 
-    my $session_levels_file = "sailing-level-counts.csv";
+    my $session_levels_file = "${session_dir}/sailing-level-counts.csv";
     open(FILE, '<', $session_levels_file) || die $! . ": ${session_levels_file}";
     my @file_content = <FILE>;
     say "level file_content: @{file_content}";
@@ -116,7 +132,7 @@ sub generate_csv {
     my ($tshirts) = @_;
     local $_;
 
-    my $file = "${data_dir}/TShirts.csv";
+    my $file = "${working_dir}/TShirts.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Student","T-shirt","Delivered"';
 
@@ -132,7 +148,7 @@ sub generate_tshirt_counts_csv {
     my ($tshirt_counts) = @_;
     local $_;
 
-    my $file = "${data_dir}/TShirt-counts.csv";
+    my $file = "${working_dir}/TShirt-counts.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Size","Count"';
 
@@ -186,10 +202,11 @@ sub parse_csv_file {
 }
 
 sub collect_students {
+    my ($data_session_dir) = @_;
     local $_;
 
     # Build trans-ref -> city map from registration_data.csv (parent record)
-    my ($reg_col, $reg_rows) = parse_csv_file("registration_data.csv");
+    my ($reg_col, $reg_rows) = parse_csv_file("${data_session_dir}/registration_data.csv");
     my %city_for_trans;
     for my $row (@$reg_rows) {
         my $trans = $row->[$reg_col->{'Trans. Ref. Num.'}] // '';
@@ -199,7 +216,7 @@ sub collect_students {
     }
 
     # Read student names from registrant_data.csv and join city via trans ref
-    my ($ant_col, $ant_rows) = parse_csv_file("registrant_data.csv");
+    my ($ant_col, $ant_rows) = parse_csv_file("${data_session_dir}/registrant_data.csv");
     for my $row (@$ant_rows) {
         my $first = $row->[$ant_col->{'First Name'}]       // '';
         my $last  = $row->[$ant_col->{'Last Name'}]        // '';
@@ -221,7 +238,7 @@ sub soundex_code {
     $name =~ s/[^A-Z]//g;
     return 'Z000' unless $name;
     my $first = substr($name, 0, 1);
-    (my $coded = $name) =~ tr/AEIOUYHWBFPVCGJKQSXZDTLMNR/000000000111122222233455566/;
+    (my $coded = $name) =~ tr/AEIOUYHWBFPVCGJKQSXZDTLMNR/00000000111122222222334556/;
     my $rest = substr($coded, 1);
     $rest =~ s/(.)\1+/$1/g;
     $rest =~ s/0//g;
@@ -281,7 +298,7 @@ sub generate_student_counts_csv {
     my $unique_count    = scalar @unique;
     my $fair_haven_count = scalar grep { is_fair_haven($_->{city}) } @unique;
 
-    my $file = "${data_dir}/student-counts.csv";
+    my $file = "${working_dir}/student-counts.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Metric","Count"';
     say FILE "\"Total registrations\",${total}";
@@ -295,7 +312,7 @@ sub generate_student_list_csv {
 
     my @unique = deduplicate_students();
 
-    my $file = "${data_dir}/student-list.csv";
+    my $file = "${working_dir}/student-list.csv";
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Name (normalized)","Town"';
 
@@ -323,24 +340,73 @@ sub invoke {
 }
 	
 
+
+sub find_visual_diff_tool {
+    for my $tool (qw(meld opendiff)) {
+        chomp(my $path = `which $tool 2>/dev/null`);
+        return $tool if $path;
+    }
+    return undef;
+}
+
+sub compare_outputs {
+    my ($ref_dir, $actual_dir) = @_;
+    local $_;
+
+    if (!-d $ref_dir) {
+        say "Output directory not found: ${ref_dir}";
+        exit 1;
+    }
+
+    say "";
+    say "Comparing outputs against ${ref_dir} ...";
+    system('diff', '-r', $ref_dir, $actual_dir);
+
+    if ($? == 0) {
+        say "All outputs match. PASS.";
+        return;
+    }
+
+    say "";
+    my $tool = find_visual_diff_tool();
+    if ($tool) {
+        say "Launching ${tool} ...";
+        system($tool, $ref_dir, $actual_dir);
+    } else {
+        say "No visual diff tool found (install meld or opendiff).";
+    }
+    exit 1;
+}
+
 sub usage {
 
 my $usage = <<'END_MESSAGE';
 Generates all the attendance files for each session. Will also generate these summary files:
-   TShirst.csv:              File listing each student and their TShirt size.
+   TShirts.csv:              File listing each student and their TShirt size.
    sailing-level-counts.csv: File listing the number of beginner, intermediate, and advanced students in each class.
 
 To run this, create directories foreach class named as follows:
-   Session-1, Session-2, Session-3, Session-4, Session-5, Session-6,  Session-7
+   Session-1, Session-2, Session-3, Session-4, Session-5, Session-6, Session-7
 
-In each directory, export the class's registration and registrant data. Name the registration data registration_data.csv and the registrant data registrant_data.csv  See instructions at end of usage.
-Then run this program from the parent directory containing the MWF-1, MWF-2.. directories.
+In each directory, export the class's registration and registrant data. Name the registration data
+registration_data.csv and the registrant data registrant_data.csv.
+Then run this program from the parent directory containing the Session-1..Session-7 directories.
+
 usage:
-   ${0} [--data-dir=<path>] [--help]
+   ${0} [--data-dir=<path>] [--output-dir=<path>] [--compare-only] [--help]
 
-   --data-dir   Directory containing Session-1..Session-7 subdirectories.
-                Defaults to the current directory.
-                Example: --data-dir ~/RiverRats/2026
+   --data-dir      Directory containing Session-1..Session-7 subdirectories.
+                   Defaults to the current directory.
+                   Example: --data-dir ~/RiverRats/2026
+
+   --output-dir    Where to write (or compare) the generated outputs.
+                   Defaults to --data-dir.
+                   Example: --output-dir ~/RiverRats/reference
+
+   --compare-only  Compare freshly generated outputs against --output-dir and
+                   launch meld or opendiff if differences are found.
+                   Nothing is written to --output-dir.
+                   Omit this flag to write outputs to --output-dir.
 
 First export the registration and registrant data into a directory, then run this program.
 
