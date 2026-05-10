@@ -2,15 +2,19 @@
 use strict;
 use warnings;
 use v5.10;
-use Getopt::Long;
+use Getopt::Long qw(:config bundling);
 use FindBin;
 use Cwd            qw(abs_path);
 use File::Basename qw(basename);
 use WWW::Mechanize;
 use Term::ReadKey;
+use MIME::Base64 qw(encode_base64);
 
 require "$FindBin::Bin/riverrats_config.pl";
 our ($event_prefix, $club_id);
+
+binmode STDOUT, ':utf8';
+binmode STDERR, ':utf8';
 
 my $site = 'https://riverratssailing.org';
 
@@ -73,32 +77,36 @@ sub do_login {
     http_die($mech, 'GET login page');
     dbg(3, "--- login page ---\n" . $mech->content);
 
-    my %f = hidden_fields($mech->content);
-    $f{'ctl00$ctl00$login_name'} = $user;
-    $f{'ctl00$ctl00$password'}   = $pass;
-    $f{'__EVENTTARGET'}          = 'ctl00$ctl00$login_button';
-    $f{'__EVENTARGUMENT'}        = '';
-    $f{'__ASYNCPOST'}            = 'true';
-    $f{'DES_JSE'}                = '1';
+    # Let Mechanize handle the form so all hidden fields (ViewState etc.) are
+    # included automatically.
+    my $form = $mech->form_number(1)
+        or die "Cannot find login form on login page\n";
+
+    if ($debug >= 2) {
+        my @names = map { $_->name // '(unnamed)' } $form->inputs;
+        dbg(2, "login form fields: " . join(', ', @names));
+    }
+
+    $mech->field('ctl00$ctl00$login_name',    $user);
+    $mech->field('ctl00$ctl00$password',      $pass);
+    # ClubExpress JavaScript does btoa(password) into hiddenPassword before submit;
+    # the server authenticates against this base64-encoded field.
+    $mech->field('ctl00$ctl00$hiddenPassword', encode_base64($pass, ''));
+
+    # __EVENTTARGET tells ASP.NET which control fired the postback
+    $form->find_input('__EVENTTARGET')->value('ctl00$ctl00$login_button')
+        if $form->find_input('__EVENTTARGET');
 
     dbg(1, "POST login as $user");
-    $mech->post($url,
-        Content                => \%f,
-        'X-Requested-With'     => 'XMLHttpRequest',
-        'X-MicrosoftAjax'      => 'Delta=true',
-        'Cache-Control'        => 'no-cache',
-    );
+    $mech->submit();
     http_die($mech, 'POST login');
-    dbg(3, "--- login response ---\n" . $mech->content);
+    dbg(1, "post-login URI: " . $mech->uri);
+    dbg(3, "--- login response (first 2 kB) ---\n" . substr($mech->content, 0, 2000));
 
-    # A session cookie should exist (it is set on GET too, but login validates it)
-    my $has_cookie = 0;
-    $mech->cookie_jar->scan(
-        sub { $has_cookie = 1 if $_[1] eq 'ASP.NET_SessionId' }
-    );
-    unless ($has_cookie) {
+    # If we're still on the login page the credentials were rejected
+    if ($mech->uri =~ /action=login/) {
         dbg(2, "login response:\n" . $mech->content);
-        die "Login failed — no session cookie. Check credentials in "
+        die "Login failed — credentials rejected. Check "
           . "~/.config/riverrats/credentials\n";
     }
 
@@ -120,20 +128,15 @@ sub find_event {
     }
     dbg(3, "--- events page ---\n" . $mech->content);
 
-    my %f = hidden_fields($mech->content);
-    $f{'ctl00$ctl00$title_text'}             = $event_name;
-    $f{'__EVENTTARGET'}                      = 'ctl00$ctl00$search_button';
-    $f{'__EVENTARGUMENT'}                    = '';
-    $f{'__ASYNCPOST'}                        = 'true';
-    $f{'ctl00$ctl00$sort_by_radiobuttonlist'} = '1';  # Most Recent first
+    my $form = $mech->form_number(1)
+        or die "Cannot find search form on events page\n";
+
+    $mech->field('ctl00$ctl00$title_text', $event_name);
+    $form->find_input('__EVENTTARGET')->value('ctl00$ctl00$search_button')
+        if $form->find_input('__EVENTTARGET');
 
     dbg(1, "POST search for '$event_name'");
-    $mech->post($url,
-        Content            => \%f,
-        'X-Requested-With' => 'XMLHttpRequest',
-        'X-MicrosoftAjax'  => 'Delta=true',
-        'Cache-Control'    => 'no-cache',
-    );
+    $mech->submit();
     http_die($mech, 'POST event search');
 
     my $body = $mech->content;
@@ -322,13 +325,13 @@ sub load_credentials {
         open(my $fh, '<', $cred_file) or die "Cannot open $cred_file: $!\n";
         while (<$fh>) {
             chomp; s/#.*//; s/^\s+|\s+$//g; next unless /\S/;
-            $user = $1 if /^username\s*=\s*(.+)$/;
-            $pass = $1 if /^password\s*=\s*(.+)$/;
+            if (/^username\s*=\s*(.+)$/) { ($user = $1) =~ s/\s+$// }
+            if (/^password\s*=\s*(.+)$/) { ($pass = $1) =~ s/\s+$// }
         }
         close $fh;
         die "No 'username' in $cred_file\n" unless defined $user;
         die "No 'password' in $cred_file\n" unless defined $pass;
-        dbg(1, "credentials from $cred_file");
+        dbg(1, "credentials from $cred_file (username=$user)");
         return ($user, $pass);
     }
 
