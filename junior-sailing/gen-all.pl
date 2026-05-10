@@ -10,6 +10,9 @@ use Text::ParseWords;
 use File::Temp qw(tempdir);
 use File::Path qw(make_path);
 
+require "$FindBin::Bin/riverrats_config.pl";
+our ($event_prefix, @sessions);
+
 my $data_dir = ".";
 my $output_dir;
 my $working_dir;
@@ -42,7 +45,7 @@ my %tshirt_counts = ();
 my $tshirt_counts = \%tshirt_counts;
 my $levels = "";
 my @all_students = ();
-my @classes = qw(Session-1 Session-2 Session-3 Session-4 Session-5 Session-6 Session-7);
+my @classes = @sessions;
 my $sailing_level_counts_file = "${working_dir}/sailing-level-counts.csv";
 
 for my $class (@classes) {
@@ -91,7 +94,8 @@ sub collect_tshirts {
     my ($session_dir) = @_;
     local $_;
 
-    my @lines = invoke("grep In: ${session_dir}/Attendance*Junior*Sailing*Session*csv");
+    my $prefix_glob = join('*', split(' ', $event_prefix));
+    my @lines = invoke("grep In: ${session_dir}/Attendance*${prefix_glob}*Session*csv");
     chomp @lines;
 
     for my $line (@lines) {
