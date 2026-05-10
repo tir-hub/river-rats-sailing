@@ -58,7 +58,7 @@ sub usage {
     (my $prog = $0) =~ s{.*/}{};
     return <<END;
 Downloads registration_data.csv, registrant_data.csv, and
-Registration_details.pdf for every session from riverratssailing.org.
+Registration-details.pdf for every session from riverratssailing.org.
 
 usage:
    $prog [--data-dir <dir>] [-d|-dd|-ddd] [--help]

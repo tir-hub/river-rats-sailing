@@ -58,11 +58,11 @@ dbg(1, "item_id:  $item_id");
 
 my $reg_count  = fetch_csv($mech, $item_id, 1, "$data_dir/registration_data.csv");
 my $ant_count  = fetch_csv($mech, $item_id, 2, "$data_dir/registrant_data.csv");
-my $pdf_bytes  = fetch_pdf($mech, $item_id, "$data_dir/Registration_details.pdf");
+my $pdf_bytes  = fetch_pdf($mech, $item_id, "$data_dir/Registration-details.pdf");
 
 say "registration_data.csv:    $reg_count registrations";
 say "registrant_data.csv:      $ant_count registrants";
-say "Registration_details.pdf: $pdf_bytes bytes";
+say "Registration-details.pdf: $pdf_bytes bytes";
 
 exit 0;
 
