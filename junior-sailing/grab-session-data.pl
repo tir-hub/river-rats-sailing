@@ -52,13 +52,13 @@ undef $pass;
 my $item_id = find_event($mech, $event_name);
 dbg(1, "item_id:  $item_id");
 
-my $reg_count = fetch_csv($mech, $item_id, 1, "$data_dir/registration_data.csv");
-my $ant_count = fetch_csv($mech, $item_id, 2, "$data_dir/registrant_data.csv");
+my $reg_count  = fetch_csv($mech, $item_id, 1, "$data_dir/registration_data.csv");
+my $ant_count  = fetch_csv($mech, $item_id, 2, "$data_dir/registrant_data.csv");
+my $pdf_bytes  = fetch_pdf($mech, $item_id, "$data_dir/Registration_details.pdf");
 
-# TODO: download Registration_details.pdf — not captured in HAR, needs investigation
-
-say "registration_data.csv: $reg_count registrations";
-say "registrant_data.csv:   $ant_count registrants";
+say "registration_data.csv:    $reg_count registrations";
+say "registrant_data.csv:      $ant_count registrants";
+say "Registration_details.pdf: $pdf_bytes bytes";
 
 exit 0;
 
@@ -207,6 +207,77 @@ sub fetch_csv {
     my $count = $lines > 0 ? $lines - 1 : 0;
 
     return $count;
+}
+
+sub fetch_pdf {
+    my ($mech, $item_id, $file) = @_;
+
+    # Step 1: GET the reports popup (report list)
+    # Note the intentional double && in the URL — matches ClubExpress's own link
+    my $url = "$site/popup.aspx?page_id=128&club_id=${club_id}&&report_group_id=14&sp1=${item_id}";
+    dbg(1, "GET $url  (reports popup)");
+    $mech->get($url);
+    http_die($mech, 'GET reports popup');
+    dbg(3, "--- reports popup ---\n" . $mech->content);
+
+    # Step 2: POST to select report 277 "Registration Details with Page Break"
+    my %f = hidden_fields($mech->content);
+    $f{'__EVENTTARGET'}     = 'ctl00$run_button';
+    $f{'__EVENTARGUMENT'}   = '';
+    $f{'report_id'}         = '277';
+    $f{'ctl00$report_list'} = '277';
+    $f{'submit_step'}       = 'SelectReport';
+    $f{'next_step'}         = 'SelectReport';
+    $f{'sp1'}               = $item_id;
+
+    dbg(1, "POST select report 277 (Registration Details with Page Break)");
+    $mech->post($url, Content => \%f);
+    http_die($mech, 'POST report selection');
+    dbg(3, "--- report output options ---\n" . $mech->content);
+
+    # Step 3: Extract report_queue_id and member_id from the OutputOptions form
+    # report_queue_id is generated fresh by the server for each report request
+    my %opts      = hidden_fields($mech->content);
+    my $rq_id     = $opts{'report_queue_id'};
+    my $member_id = $opts{'member_id'} // '';
+
+    unless ($rq_id && $rq_id ne '0') {
+        print STDERR "ERROR: did not receive a valid report_queue_id\n";
+        dbg(2, "report options response:\n" . $mech->content);
+        exit 1;
+    }
+    dbg(1, "report_queue_id=$rq_id  member_id=$member_id");
+
+    # Step 4: GET the PDF from ClubExpress's external report renderer
+    # The browser's JavaScript strips ASP.NET fields and submits these via GET.
+    # output_format: 1=PDF, 4=Word, 5=Excel, 17=HTML, 19=CSV
+    my $pdf_url = 'https://reports.clubexpress.com/create_report.ashx'
+                . "?club_id=${club_id}"
+                . "&member_id=${member_id}"
+                . "&output_format=1"
+                . "&papersize=Default"
+                . "&report_queue_id=${rq_id}"
+                . "&report_title=Registration+Details"
+                . "&sp1=${item_id}";
+
+    dbg(1, "GET $pdf_url");
+    $mech->get($pdf_url);
+    http_die($mech, 'GET PDF from reports.clubexpress.com');
+
+    my $ct = $mech->ct;
+    unless ($ct =~ m{application/pdf}i || $ct =~ m{application/octet-stream}i) {
+        print STDERR "ERROR: expected PDF, got: $ct\n";
+        dbg(2, "response body (first 2 kB):\n" . substr($mech->content, 0, 2048));
+        exit 1;
+    }
+
+    my $pdf = $mech->content;
+    open(my $fh, '>', $file) or die "Cannot write $file: $!\n";
+    binmode $fh;
+    print $fh $pdf;
+    close $fh;
+
+    return length($pdf);
 }
 
 # ─── utilities ───────────────────────────────────────────────────────────────
