@@ -200,8 +200,7 @@ sub fetch_csv {
     my $csv = $mech->content;
     dbg(3, "--- $label CSV ---\n$csv");
 
-    open(my $fh, '>', $file) or die "Cannot write $file: $!\n";
-    binmode $fh;
+    open(my $fh, '>:utf8', $file) or die "Cannot write $file: $!\n";
     print $fh $csv;
     close $fh;
 
