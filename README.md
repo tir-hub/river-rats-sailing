@@ -68,8 +68,12 @@ first in your PATH.
 
 ```bash
 brew install perl cpanminus
-cpanm WWW::Mechanize Term::ReadKey
+cpanm WWW::Mechanize Term::ReadKey LWP::Protocol::https
 ```
+
+`LWP::Protocol::https` is required for HTTPS support — on Linux it is
+pulled in automatically by the `apt` package, but on macOS it must be
+installed explicitly.
 
 **Any platform (CPAN fallback):**
 
