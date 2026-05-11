@@ -2,8 +2,7 @@
 use strict;
 use warnings;
 use v5.10;
-use Getopt::Long;
-use Data::Dumper;
+use Getopt::Long qw(:config bundling);
 use FindBin;
 use Cwd qw(abs_path);
 use Text::ParseWords;
@@ -17,14 +16,14 @@ my $data_dir = ".";
 my $output_dir;
 my $working_dir;
 my $compare_only = 0;
-my $verbose;
-my $help = 0;
+my $debug        = 0;
+my $help         = 0;
 
 GetOptions (
             "data-dir=s"   => \$data_dir,
             "output-dir=s" => \$output_dir,
             "compare-only" => \$compare_only,
-            "verbose"      => \$verbose,
+            "debug|d+"     => \$debug,
             "help"         => \$help)
     ||  die usage();
 
@@ -55,9 +54,11 @@ for my $class (@classes) {
     my $session_dir      = "${working_dir}/${class}";
     my $data_session_dir = "${data_dir}/${class}";
     make_path($session_dir) if $working_dir ne $data_dir;
-    invoke("$FindBin::Bin/gen-attendance.pl"
-         . " --input-dir=${data_session_dir}"
-         . " --output-dir=${session_dir}");
+    my $ga_debug = $debug >= 2 ? ' -' . 'd' x ($debug - 1) : '';
+    invoke(1, "$FindBin::Bin/gen-attendance.pl"
+            . " --input-dir=${data_session_dir}"
+            . " --output-dir=${session_dir}"
+            . $ga_debug);
     collect_tshirts($session_dir);
     collect_levels($class, $session_dir);
     collect_students($data_session_dir);
@@ -87,7 +88,7 @@ sub collect_tshirts {
     local $_;
 
     my $prefix_glob = join('*', split(' ', $event_prefix));
-    my @lines = invoke("grep In: ${session_dir}/Attendance*${prefix_glob}*Session*csv");
+    my @lines = invoke(2, "grep In: ${session_dir}/Attendance*${prefix_glob}*Session*csv");
     chomp @lines;
 
     for my $line (@lines) {
@@ -116,7 +117,6 @@ sub collect_levels {
     my $session_levels_file = "${session_dir}/sailing-level-counts.csv";
     open(FILE, '<', $session_levels_file) || die $! . ": ${session_levels_file}";
     my @file_content = <FILE>;
-    say "level file_content: @{file_content}";
     foreach my $file_content (@file_content) {
 	$levels = $levels . $file_content;
     }
@@ -323,16 +323,19 @@ sub generate_student_list_csv {
 }
 
 sub invoke {
-    my ($cmd) = @_;
+    my ($level, $cmd) = @_;
     local $_;
 
-    say "invoking ${cmd}";
+    dbg($level, "invoking $cmd");
     my @result = `$cmd`;
-    if ($?) {
-	die $?;
-    }
+    die $? if $?;
     return @result;
-    
+}
+
+sub dbg {
+    my ($level, $msg) = @_;
+    return if $level > $debug;
+    say $msg;
 }
 	
 
@@ -393,7 +396,7 @@ registration_data.csv and the registrant data registrant_data.csv.
 Then run this program from the parent directory containing the Session-1..Session-7 directories.
 
 usage:
-   ${0} [--data-dir=<path>] [--output-dir=<path>] [--compare-only] [--help]
+   ${0} [--data-dir=<path>] [--output-dir=<path>] [--compare-only] [-d|-dd] [--help]
 
    --data-dir      Directory containing Session-1..Session-7 subdirectories.
                    Defaults to the current directory.
@@ -407,6 +410,9 @@ usage:
                    launch meld or opendiff if differences are found.
                    Nothing is written to --output-dir.
                    Omit this flag to write outputs to --output-dir.
+
+   -d              Debug level 1: log each gen-attendance.pl invocation.
+   -dd             Debug level 2: also log grep invocations; pass -d to gen-attendance.pl.
 
 First export the registration and registrant data into a directory, then run this program.
 
