@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use v5.10;
-use Getopt::Long;
+use Getopt::Long qw(:config bundling);
 use Data::Dumper;
 # use Text::CSV;
 use Text::ParseWords;
@@ -12,15 +12,15 @@ my $output_dir;
 my $registration_file;
 my $registrant_file;
 my $length = 24;
-my $verbose;
-my $help = 0;
+my $debug  = 0;
+my $help   = 0;
 
 GetOptions ("length=i"       => \$length,
             "input-dir=s"    => \$input_dir,
             "output-dir=s"   => \$output_dir,
             "registration=s" => \$registration_file,
             "registrant=s"   => \$registrant_file,
-            "verbose"        => \$verbose,
+            "debug|d+"       => \$debug,
             "help"           => \$help)
     ||  die usage();
 
@@ -35,6 +35,10 @@ $registration_file //= "${input_dir}/registration_data.csv";
 $registrant_file   //= "${input_dir}/registrant_data.csv";
 
 say "generating reports";
+dbg(1, "input-dir:  $input_dir");
+dbg(1, "output-dir: $output_dir");
+dbg(1, "reading:    $registration_file");
+dbg(1, "reading:    $registrant_file");
 
 # Registrant titles
 # "Title","Date/Time","Status","Trans. Ref. Num.","Registrant Fees","First Name","Middle Initial","Last Name","Nickname","Email","Phone","Address 1","Address 2","City","State","Postal Code","Country","Company","Cell Phone","Work Title","Primary Member?","Member?","Member Number","Registrant Type","Primary Registrant Name","Sequence Number","Age","Sailing Level","TShirt size","List food allergies","List drug allergies","List environmental allergies","Restricted nonprescription medications","Has Epipen","Sweeps","Permission for Lunch OffPremises","PhotoWeb Release"
@@ -69,19 +73,13 @@ my $registrants = \@registrants;
 
 my $event_title = $registrants->[0]->{${event_title_title}};
 
-say "";
-say "registrations";
-say Dumper($registrations);
-
-say "";
-say "registrants";
-say Dumper($registrants);
-
 my $registrations_hash = registrations_to_hash($registrations);
 
-say "";
-say "registrations_hash";
-say Dumper($registrations_hash);
+if ($debug >= 3) {
+    dbg(3, "registrations:\n"      . Dumper($registrations));
+    dbg(3, "registrants:\n"        . Dumper($registrants));
+    dbg(3, "registrations_hash:\n" . Dumper($registrations_hash));
+}
 
 generate_attendance_csv($registrations_hash, $registrants);
 generate_attendance_txt($registrations_hash, $registrants);
@@ -102,7 +100,7 @@ sub parse_csv {
     $line =~ s/\r$//;
     
     my @titles = split(/,/, $line);
-    say @titles;
+    dbg(2, "columns: " . join(', ', @titles));
 
     my @result = ();
 
@@ -120,7 +118,7 @@ sub parse_csv_line {
     $line =~ s/\r$//;
 
     if ($line =~ m/,$/) {
-	say "line ends with ,";
+	dbg(2, "line ends with ,");
 	$line = $line . "\"\"";
     }
 
@@ -148,6 +146,7 @@ sub generate_attendance_csv {
 
     my $short_event = $event_title;
     my $file = "${output_dir}/Attendance ${short_event}.csv";
+    dbg(1, "writing:    $file");
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Student","T-shirt","Contact","Lunch-off-prem", "Alergies", "Full Signature and Time"';
 
@@ -207,6 +206,7 @@ $name,             $t_shirt,         $contact,        $lunch,    $alergies,  "In
 .    
 
     my $file = "${output_dir}/Attendance.txt";
+    dbg(1, "writing:    $file");
     open(FILE, '>', $file) || die $! . ": ${file}";
     select FILE;
 
@@ -252,6 +252,7 @@ sub generate_sailing_level_counts_csv {
     my $unsure = 0;
 
     my $file = "${output_dir}/sailing-level-counts.csv";
+    dbg(1, "writing:    $file");
     open(FILE, '>', $file) || die $! . ": ${file}";
     say FILE '"Total","Beginners","Intermediates","Advanced","Unsure"';
 
@@ -384,6 +385,12 @@ $result -> {$registration -> {$transaction_title}} = $registration;
     return $result;
 }
 
+sub dbg {
+    my ($level, $msg) = @_;
+    return if $level > $debug;
+    print STDERR $msg, "\n";
+}
+
 sub usage {
 
 my $usage = <<'END_MESSAGE';
@@ -391,12 +398,19 @@ my $usage = <<'END_MESSAGE';
 Generates the attendance file for the class in both text and csv form.
 
 usage:
-   $0 [--registrant=file] [--registration=file]
+   $0 [--input-dir=<dir>] [--output-dir=<dir>] [-d|-dd|-ddd] [--help]
 
-   default registrant filename: registrant_data.csv
-   default registration filename: registration.csv
-   generated attendance csv filename: Attendance <class> Junior Sailing Class Session-<session-number>.csv     example: Attendance M-W-F Junior Sailing Class Session-1.csv
-   generated attendabce text filename:  Attendance.txt
+   --input-dir     Directory containing registration_data.csv and registrant_data.csv.
+                   Defaults to current directory.
+   --output-dir    Directory to write output files. Defaults to --input-dir.
+   --registration  Override registration CSV filename.
+   --registrant    Override registrant CSV filename.
+
+   -d              Debug level 1: log files being read/written.
+   -dd             Debug level 2: also log CSV column names and parsing details.
+   -ddd            Debug level 3: dump full parsed data structures.
+
+   generated files: Attendance <event>.csv, Attendance.txt, sailing-level-counts.csv
 
 First export the registration and registrant data into a directory, then run this program.
 
