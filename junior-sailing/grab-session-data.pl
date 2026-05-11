@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use v5.10;
@@ -131,6 +131,14 @@ sub find_event {
     my $form = $mech->form_number(1)
         or die "Cannot find search form on events page\n";
 
+    if ($debug >= 2) {
+        my @names = map { $_->name // '(unnamed)' } $form->inputs;
+        dbg(2, "search form fields: " . join(', ', @names));
+    }
+
+    my $year = (localtime)[5] + 1900;
+    $mech->field('ctl00$ctl00$start_date_text',  "01/01/$year");
+    $mech->field('ctl00$ctl00$finish_date_text', "12/31/$year");
     $mech->field('ctl00$ctl00$title_text', $event_name);
     $form->find_input('__EVENTTARGET')->value('ctl00$ctl00$search_button')
         if $form->find_input('__EVENTTARGET');
@@ -371,6 +379,7 @@ Options:
    --help             Show this message.
 
 Credentials are read from ~/.config/riverrats/credentials.
+The account must have Admin or Event Coordinator role on ClubExpress.
 See README.md for setup instructions.
 
 On success, stdout reports each file and its entry count:

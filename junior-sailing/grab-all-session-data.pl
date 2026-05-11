@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use v5.10;
@@ -26,6 +26,8 @@ GetOptions(
 if ($help) { say usage(); exit 0; }
 
 $data_dir = abs_path($data_dir);
+
+say "data-dir: $data_dir";
 
 my $grabber = "$FindBin::Bin/grab-session-data.pl";
 my @debug_flag = $debug ? ('-' . 'd' x $debug) : ();
@@ -75,6 +77,7 @@ Options:
    --help             Show this message.
 
 Credentials are read from ~/.config/riverrats/credentials (see README.md).
+The account must have Admin or Event Coordinator role on ClubExpress.
 Session directories are created automatically if they do not exist.
 END
 }

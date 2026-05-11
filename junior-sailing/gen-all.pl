@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use v5.10;
@@ -33,11 +33,13 @@ if ($help) {
     exit(0);
 }
 
-say "generating all reports";
-
 $data_dir   = abs_path($data_dir);
 $output_dir = defined($output_dir) ? abs_path($output_dir) : $data_dir;
 $working_dir = $compare_only ? tempdir(CLEANUP => 1) : $output_dir;
+
+say "generating all reports";
+say "data-dir:   $data_dir";
+say "output-dir: $output_dir";
 
 my %tshirts = ();
 my $tshirts = \%tshirts;
@@ -61,22 +63,12 @@ for my $class (@classes) {
     collect_students($data_session_dir);
 }
 
-# say Dumper($tshirts);
-
 for my $key (sort keys %tshirts) {
     my $size = $tshirts->{$key};
-    say "${key}: " . $size;
     if (!$tshirt_counts->{$size}) {
 	$tshirt_counts->{$size} = 0;
     }
     $tshirt_counts->{$size} = $tshirt_counts->{$size} + 1;
-}
-
-# say Dumper($tshirt_counts);
-
-for my $key (sort keys %tshirt_counts) {
-    my $count = $tshirt_counts->{$key};
-    say "${key}: " . $count;
 }
 
 generate_csv($tshirts);
