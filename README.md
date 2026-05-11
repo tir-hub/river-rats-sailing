@@ -59,10 +59,15 @@ Input data and generated output live **outside** the repo, one subdirectory per 
 sudo apt install libwww-mechanize-perl libterm-readkey-perl
 ```
 
-**macOS (Homebrew + cpanm):**
+**macOS (Homebrew):**
+
+Install Homebrew's own Perl rather than using the system Perl — macOS may
+remove or replace the system Perl on OS updates.  The scripts use
+`#!/usr/bin/env perl` so they will automatically use whichever `perl` is
+first in your PATH.
 
 ```bash
-brew install cpanminus
+brew install perl cpanminus
 cpanm WWW::Mechanize Term::ReadKey
 ```
 
@@ -74,9 +79,12 @@ cpan WWW::Mechanize Term::ReadKey
 
 ### Website Credentials for `grab-session-data.pl`
 
-The download script reads your ClubExpress login from
-`~/.config/riverrats/credentials` so the password never appears in your
-shell history.  Create the file once:
+The download script requires a ClubExpress account with **Admin** or
+**Event Coordinator** role — a regular member account does not have access
+to the registration export pages.
+
+The script reads your login from `~/.config/riverrats/credentials` so the
+password never appears in your shell history.  Create the file once:
 
 ```bash
 mkdir -p ~/.config/riverrats
@@ -90,6 +98,24 @@ chmod 600 ~/.config/riverrats/credentials
 
 If the file does not exist the script will prompt interactively
 (password input is hidden).
+
+### Optional: Shell Environment Setup
+
+For a shorter command-line workflow, create `~/.junior-sailing-env`:
+
+```bash
+export JUNIOR_SAILING_SCRIPTS=~/Code/Perl/RiverRats/junior-sailing
+export JUNIOR_SAILING_DATA=~/Documents/Data/RiverRats/$(date +%Y)
+PATH=$JUNIOR_SAILING_SCRIPTS:$PATH
+```
+
+Add the first two lines (without the PATH change) to `~/.profile` so the
+variables are always available.  Source the full file at the start of a
+working session to also get the scripts on your PATH:
+
+```bash
+. ~/.junior-sailing-env
+```
 
 ## Junior Sailing Workflow
 
@@ -139,6 +165,27 @@ If you've intentionally changed the output format, update the golden files with:
 
 ```bash
 junior-sailing/test/run-tests.sh --update-golden
+```
+
+### 5. Package and distribute
+
+```bash
+junior-sailing/zip-it
+```
+
+Email `classes.zip` to the session instructors.
+
+### Typical session (short form)
+
+If you have `~/.junior-sailing-env` set up (see [Optional: Shell Environment Setup](#optional-shell-environment-setup)):
+
+```bash
+. ~/.junior-sailing-env
+cd $JUNIOR_SAILING_DATA
+grab-all-session-data.pl
+gen-all.pl
+zip-it
+# Email classes.zip to the session instructors
 ```
 
 ## Kayak Rack Report
